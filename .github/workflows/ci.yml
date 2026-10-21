@@ -29,13 +29,13 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: dotnet restore MeuBar.slnx --locked-mode
-      - run: dotnet test MeuBar.slnx --no-restore --logger trx
       - run: npm ci
         working-directory: frontend
       - run: npm audit
         working-directory: frontend
       - run: npm run build
         working-directory: frontend
+      - run: dotnet test MeuBar.slnx --no-restore --logger trx
       - run: npx playwright install --with-deps chromium
         working-directory: frontend
       - name: Iniciar aplicação de teste

@@ -4,6 +4,12 @@ Sistema web em português para mesas e balcão, comandas reutilizáveis, fiados,
 
 **Estado: implementação funcional para desenvolvimento e homologação. Não está liberada para uso comercial.** Os fluxos locais são executáveis e testados. A infraestrutura remota precisa ser configurada e os ensaios entre equipamentos independentes precisam passar antes de usar dados reais. Veja [aceitação e limitações](docs/aceitacao.md).
 
+## Testar pela web, sem instalar
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FAntonioHenriquee%2FBarManager&branch=feat%2Fmeu-bar-web)
+
+O botão prepara frontend, API e banco na sua conta Render. Autorize a integração, selecione a branch `feat/meu-bar-web` e confirme os planos disponíveis. O link público será fornecido pelo Render após o deploy; esta configuração não equivale a um site já publicado. Usuário `admin`; a senha é gerada no painel, em `Bootstrap__AdminPassword`. [Passo a passo da demonstração](docs/teste-web.md).
+
 ## Iniciar com Docker
 
 Instale Docker com Compose v2. Em Linux/macOS com Python 3 e curl:
@@ -60,8 +66,8 @@ O servidor Angular encaminha `/api` para a API local na porta 5080. Não exponha
 ## Build e testes
 
 ```sh
-dotnet build MeuBar.slnx --no-restore
 npm --prefix frontend run build
+dotnet build MeuBar.slnx --no-restore
 # Conexão exclusiva de testes, com permissão CREATE DATABASE:
 # export MEUBAR_TEST_DATABASE='Host=...;Database=postgres;Username=...;Password=...'
 dotnet test backend/MeuBar.Tests
@@ -71,7 +77,7 @@ dotnet test backend/MeuBar.Tests
 npm --prefix frontend run test:e2e
 ```
 
-Os testes xUnit criam bancos de nomes aleatórios, executam migrations e removem apenas seus bancos ao terminar. Os testes de navegador criam registros com prefixo `E2E-`; **use banco descartável**. É possível instalar o navegador com `npx playwright install chromium` e indicar `CHROMIUM_PATH`, ou usar o Chromium instalado no sistema. A configuração padrão de testes do contêiner usa `/usr/bin/chromium` com sandbox desativada; execute apenas em ambiente isolado de teste.
+O teste de publicação unificada exige o frontend compilado: execute `npm --prefix frontend run build` antes de `dotnet test`. Os testes xUnit criam bancos de nomes aleatórios, executam migrations e removem apenas seus bancos ao terminar. Os testes de navegador criam registros com prefixo `E2E-`; **use banco descartável**. É possível instalar o navegador com `npx playwright install chromium` e indicar `CHROMIUM_PATH`, ou usar o Chromium instalado no sistema. A configuração padrão de testes do contêiner usa `/usr/bin/chromium` com sandbox desativada; execute apenas em ambiente isolado de teste.
 
 O frontend usa Vite 8.3.5 por override explícito para corrigir os avisos de segurança presentes na versão transitiva anterior de `@angular/build`.
 

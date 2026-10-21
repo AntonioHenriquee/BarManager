@@ -6,7 +6,7 @@
 |---|---|
 | Build ASP.NET Core e publicação Release | Passou, sem erros |
 | Migrations PostgreSQL 17 | Aplicadas em bancos reais de testes; modelo sem mudanças pendentes |
-| xUnit de integração | **15 passaram, 0 falharam, 0 ignorados** |
+| xUnit de integração | **22 passaram, 0 falharam, 0 ignorados** |
 | Build Angular de produção | Passou |
 | Auditoria npm, incluindo dependências de desenvolvimento | 0 vulnerabilidades após atualização do Vite |
 | Chromium / Playwright, fluxo completo e viewport de celular | **1 passou** |
@@ -36,11 +36,17 @@ Os registros do runner xUnit ficam em `TestResults/acceptance.trx`, ignorado pel
 14. Pagamento misto separa recebimentos e crédito; estorno de recebimento de fiado repõe o saldo devedor com movimento inverso. Preço/custo históricos resistem à alteração posterior do produto.
 15. Permissão de fechamento de caixa funciona sem conceder recebimentos ou administração, preservando esperado, contado e diferença.
 
-Alguns cenários compartilham um teste e outros têm testes próprios; o total do runner é 15, não uma contagem de subtarefas.
+Alguns cenários compartilham um teste e outros têm testes próprios; a suíte original tinha 15 cenários e a suíte atual totaliza 22 casos, não uma contagem de subtarefas.
 
 O teste de navegador cadastra produto, entra com 50 unidades, abre caixa, cadastra mesa, atende cinco produtos de R$ 10,00, fecha R$ 50,00, confirma liberação, abre outra comanda vazia, verifica estoque 45 e navegação sem rolagem horizontal em 390 px. A execução usa servidor/API e PostgreSQL reais, sem respostas fictícias.
 
 O teste do script de backup usou clientes PostgreSQL 17 executados no contêiner, binários age e rclone, criptografia real, upload/conferência para diretório de teste e restauração em banco novo. Isso demonstra o formato e o procedimento; não confirma disponibilidade/credenciais/retenção de um armazenamento remoto independente.
+
+## Atualização: versão unificada para hospedagem web
+
+O Dockerfile da raiz e `render.yaml` preparam Angular e API no mesmo endereço, com PostgreSQL gerenciado. Sete novos casos automatizados validam conversão de `DATABASE_URL`, prioridade da configuração anterior, rejeição de URLs inválidas sem exposição de credenciais e entrega do Angular real no mesmo host, mantendo cookies seguros e autorização da API. As rotas desconhecidas da API retornam 404 JSON e não a página Angular.
+
+A publicação Release unificada foi executada nativamente com arquivos Angular compilados e conexão por `DATABASE_URL` num banco descartável. O fluxo completo de atendimento passou no Chromium apontando diretamente para essa publicação, sem servidor Angular de desenvolvimento ou proxy de frontend. Isso não é uma publicação externa: criação e validação do serviço Render ainda dependem da autorização na conta do usuário. Veja [teste web](teste-web.md).
 
 ## Etapas entregues e pendências
 

@@ -7,3 +7,6 @@
 **/dist
 **/.angular
 backups
+TestResults
+**/test-results
+**/playwright-report

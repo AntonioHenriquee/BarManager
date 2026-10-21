@@ -20,7 +20,7 @@ if(!string.IsNullOrEmpty(remote)) {
  Rules.Check((builder.Configuration["Sync:Key"]??"").Length>=32,"Sincronização exige Sync__Key com pelo menos 32 caracteres.");
 }
 if(!builder.Environment.IsDevelopment()) Rules.Check(builder.Configuration.GetValue("Security:SecureCookies",true)||string.IsNullOrEmpty(builder.Configuration["PublicDomain"]),"Acesso remoto exige cookies seguros.");
-builder.Services.AddDbContext<BarDb>(o=>o.UseNpgsql(builder.Configuration.GetConnectionString("Database")??throw new InvalidOperationException("Configure ConnectionStrings__Database.")));
+builder.Services.AddDbContext<BarDb>(o=>o.UseNpgsql(DatabaseSettings.ConnectionString(builder.Configuration)));
 builder.Services.AddScoped<Writer>();builder.Services.AddScoped<BarOperations>();builder.Services.AddScoped<Replicator>();
 builder.Services.AddSingleton<IPasswordHasher<User>,PasswordHasher<User>>();
 builder.Services.AddAuthentication("Session").AddScheme<AuthenticationSchemeOptions,BarAuth>("Session",null);
@@ -42,6 +42,7 @@ app.Use(async(ctx,next)=>{
  catch(DbUpdateException ex) when(ex.InnerException is PostgresException p&&p.SqlState is "23505" or "23503" or "23514") {ctx.Response.StatusCode=409;await ctx.Response.WriteAsJsonAsync(new{error="Operação conflita com um registro existente ou viola a integridade dos dados."});}
  catch(Exception ex) {app.Logger.LogError("Falha na requisição {Path}: {Type}",ctx.Request.Path,ex.GetType().Name);ctx.Response.StatusCode=500;await ctx.Response.WriteAsJsonAsync(new{error="Falha interna. A operação não foi confirmada; consulte o histórico antes de tentar novamente."});}
 });
+app.UseDefaultFiles();app.UseStaticFiles();
 app.UseRateLimiter();app.UseAuthentication();app.UseAuthorization();
 app.MapGet("/health",async(BarDb db)=>await db.Database.CanConnectAsync()?Results.Ok(new{status="ok"}):Results.StatusCode(503));
 app.MapGet("/api/auth/me",(ClaimsPrincipal user)=>Results.Ok(new{id=Rules.UserId(user),name=user.Identity!.Name,role=user.FindFirstValue(ClaimTypes.Role),canReceive=user.IsInRole("Admin")||user.HasClaim("receive","true"),canCloseCash=user.IsInRole("Admin")||user.HasClaim("closeCash","true")})).RequireAuthorization();
@@ -127,6 +128,9 @@ api.MapGet("/dashboard",Reports.Dashboard).RequireAuthorization("Admin");
 api.MapGet("/reports",Reports.Report).RequireAuthorization("Admin");
 api.MapGet("/reports.csv",Reports.Csv).RequireAuthorization("Admin");
 app.MapOpenApi().RequireAuthorization("Admin");
+// URLs da SPA retornam o Angular; rotas de API inexistentes continuam retornando 404 JSON.
+app.Map("/api/{**path}", () => Results.NotFound(new { error = "Rota de API não encontrada." }));
+app.MapFallbackToFile("index.html");
 using(var scope=app.Services.CreateScope()) {
  var db=scope.ServiceProvider.GetRequiredService<BarDb>();
  if(builder.Configuration.GetValue("Database:Migrate",false)) await db.Database.MigrateAsync();
