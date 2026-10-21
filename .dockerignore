@@ -1,0 +1,9 @@
+.git
+.env
+.local
+**/node_modules
+**/bin
+**/obj
+**/dist
+**/.angular
+backups

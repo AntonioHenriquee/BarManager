@@ -1,0 +1,77 @@
+name: meubar
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: meubar
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Configure DB_PASSWORD em .env}
+      POSTGRES_DB: meubar
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U meubar -d meubar"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  api:
+    build:
+      context: .
+      dockerfile: backend/MeuBar.Api/Dockerfile
+    environment:
+      ConnectionStrings__Database: Host=db;Database=meubar;Username=meubar;Password=${DB_PASSWORD}
+      Database__Migrate: "true"
+      Bootstrap__AdminPassword: ${ADMIN_PASSWORD:-}
+      PublicDomain: ${PUBLIC_DOMAIN:-}
+      Security__SecureCookies: ${SECURE_COOKIES:-false}
+      Node__Mode: ${NODE_MODE:-Authority}
+      Node__DeviceId: ${DEVICE_ID:-local-bar-01}
+      Sync__AuthorityDeviceId: ${AUTHORITY_DEVICE_ID:-local-bar-01}
+      Sync__RemoteUrl: ${SYNC_REMOTE_URL:-}
+      Sync__Key: ${SYNC_KEY:-}
+      Backup__StatusKey: ${BACKUP_STATUS_KEY:-}
+    depends_on:
+      db: {condition: service_healthy}
+    restart: unless-stopped
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports: ["127.0.0.1:${LOCAL_PORT:-8080}:8080"]
+    depends_on: [api]
+    restart: unless-stopped
+  https:
+    image: caddy:2.10-alpine
+    profiles: [remote]
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    ports: ["80:80", "443:443", "443:443/udp"]
+    depends_on: [web]
+    restart: unless-stopped
+  backup:
+    profiles: [backup]
+    build:
+      context: .
+      dockerfile: deploy/backup.Dockerfile
+    environment:
+      PGHOST: db
+      PGUSER: meubar
+      PGPASSWORD: ${DB_PASSWORD}
+      PGDATABASE: meubar
+      AGE_RECIPIENT: ${AGE_RECIPIENT:-}
+      BACKUP_REMOTE: ${BACKUP_REMOTE:-}
+      RETENTION_DAYS: ${RETENTION_DAYS:-30}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-3600}
+      BACKUP_STATUS_KEY: ${BACKUP_STATUS_KEY:-}
+      STATUS_URL: http://api:8080/api/backup/status
+      RCLONE_CONFIG: /config/rclone.conf
+    volumes: ["./.local/rclone.conf:/config/rclone.conf:ro"]
+    depends_on: [api]
+    restart: unless-stopped
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

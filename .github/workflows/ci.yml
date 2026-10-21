@@ -1,0 +1,56 @@
+name: Build e aceitação
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: meubar
+          POSTGRES_PASSWORD: ci-test-only
+          POSTGRES_DB: meubar_e2e
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U meubar -d meubar_e2e"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      MEUBAR_TEST_DATABASE: Host=127.0.0.1;Database=postgres;Username=meubar;Password=ci-test-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: dotnet restore MeuBar.slnx --locked-mode
+      - run: dotnet test MeuBar.slnx --no-restore --logger trx
+      - run: npm ci
+        working-directory: frontend
+      - run: npm audit
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Iniciar aplicação de teste
+        shell: bash
+        run: |
+          set -euo pipefail
+          test_password=$(openssl rand -hex 32)
+          echo "::add-mask::$test_password"
+          echo "MEUBAR_E2E_PASSWORD=$test_password" >> "$GITHUB_ENV"
+          export Bootstrap__AdminPassword="$test_password"
+          export ConnectionStrings__Database='Host=127.0.0.1;Database=meubar_e2e;Username=meubar;Password=ci-test-only'
+          export Database__Migrate=true Security__SecureCookies=false ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://127.0.0.1:5080
+          dotnet run --no-build --project backend/MeuBar.Api > /tmp/meubar-api.log 2>&1 &
+          npm --prefix frontend start > /tmp/meubar-web.log 2>&1 &
+          curl --fail --silent --retry 30 --retry-connrefused --retry-delay 2 http://127.0.0.1:5080/health
+          curl --fail --silent --retry 30 --retry-connrefused --retry-delay 2 http://127.0.0.1:4200/ -o /dev/null
+      - run: npm run test:e2e
+        working-directory: frontend

@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/backend/">
+    <Project Path="backend/MeuBar.Api/MeuBar.Api.csproj" />
+    <Project Path="backend/MeuBar.Tests/MeuBar.Tests.csproj" />
+  </Folder>
+</Solution>
